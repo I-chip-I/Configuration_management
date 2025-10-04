@@ -1,0 +1,7 @@
+ls "abc" de
+cd abc "de"
+lsabc
+cd
+l abc
+cd                             adv
+exit
