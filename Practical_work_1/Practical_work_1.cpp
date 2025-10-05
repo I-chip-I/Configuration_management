@@ -177,8 +177,85 @@ void Error_message(int error_code, string command) //вывод сообщени
             cout << "No such file or directory";
         }
         break;
+    case 4:
+        cout << command << ": not a zip archive" << endl;
+        break;
+    case 5:
+        cout << command << ": empty" << endl;
+        break;
     }
 }
+
+struct Entry
+{
+public:
+    string name;
+    string path;
+    bool is_folder = 1;
+    Entry* Up_folder;
+    vector<Entry*> Down_entries;
+
+    void Rename_entry(vector<Entry>& Zip_entries, bool is_in_vector)
+    {
+        int i_slash = path.rfind('/');
+        if (i_slash != -1)
+        {
+            name = path.substr(i_slash + 1);
+            string up_folder_name = "";
+
+            int i_slash_2 = (path.substr(0, i_slash)).rfind('/');
+            if (i_slash_2 != -1)
+            {
+                up_folder_name = path.substr(i_slash_2 + 1, (i_slash - 1) - i_slash_2);
+            }
+            else
+            {
+                up_folder_name = path.substr(0, i_slash);
+            }
+
+            if (is_in_vector == 0)
+            {
+                Zip_entries.push_back(*this);
+                Find_up_folder(i_slash, up_folder_name, Zip_entries);
+            }
+        }
+        else
+        {
+            name = path;
+            Up_folder = nullptr;
+
+            if (is_in_vector == 0)
+            {
+                Zip_entries.push_back(*this);
+            }
+        }
+    }
+
+    void Find_up_folder(int i_slash, string up_folder_name, vector<Entry>& Zip_entries)
+    {
+        for (int i = 0; i < Zip_entries.size(); i++)
+        {
+            if (Zip_entries[i].name == up_folder_name)
+            {
+                Up_folder = &Zip_entries[i];
+                Up_folder->Down_entries.push_back(this);
+                return;
+            }
+
+            if (Zip_entries[i].name == name)
+            {
+                Entry new_entry;
+                new_entry.name = up_folder_name;
+                new_entry.path = path.substr(0, i_slash);
+                Up_folder = &new_entry;
+                Up_folder->Down_entries.push_back(this);
+                Zip_entries.insert(Zip_entries.begin() + i, new_entry);
+                new_entry.Rename_entry(Zip_entries, 1);
+                return;
+            }
+        }
+    }
+};
 
 void ls(string command) //команда ls
 {
@@ -230,16 +307,124 @@ void cd(string command) //команда cd
     }
 }
 
-void VFS(string parameter) //команда --vfs
+size_t Read_zip(string f_path, vector<unsigned char>& Zip_data) //чтение zip-файла
 {
-    if (parameter.length() > 0)
+    ifstream in(f_path, ios::binary);
+    if (in.is_open())
     {
-        cout << endl;
-        cout << "VFS: " << parameter << endl;
+        in.seekg(0, ios::end);
+        size_t f_size = in.tellg();
+        in.seekg(0, ios::beg);
+
+        Zip_data.resize(f_size);
+        in.read((char*)Zip_data.data(), f_size);
+
+        in.close();
+        return f_size;
     }
     else
     {
-        Error_message(3, parameter);
+        Error_message(2, f_path);
+        return -1;
+    }
+}
+
+void VFS(string f_path) //команда --vfs
+{
+    int is_zip = f_path.find(".zip");
+    if (is_zip != -1)
+    {
+        if (f_path.length() > 0)
+        {
+            vector<unsigned char> Zip_data;
+            size_t f_size = Read_zip(f_path, Zip_data);
+
+            if (f_size > 22)
+            {
+                int pos_centre_dir = -1, i = f_size - 22; //сигнатура начинается не позже 23 байта от конца файла
+                while (i >= 0)
+                {
+                    if (Zip_data[i + 3] == 0x06 && Zip_data[i + 2] == 0x05 && Zip_data[i + 1] == 0x4b && Zip_data[i] == 0x50) //0x06054b50 последовательность байтов, означающая конец центрального каталога
+                    {
+                        pos_centre_dir = i;
+                        break;
+                    }
+                    i--;
+                }
+
+
+                if (pos_centre_dir != -1)
+                {
+                    vector<Entry> Zip_entries;
+                    i = 0;
+
+                    while (i < pos_centre_dir)
+                    {
+                        if (Zip_data[i] == 0x50 && Zip_data[i + 1] == 0x4b && Zip_data[i + 2] == 0x01 && Zip_data[i + 3] == 0x02)
+                        {
+                            int len_name = Zip_data[i + 28] | (Zip_data[i + 29] << 8); //сдвиг старшего байта вперёд, так как читается число аналогично сигнатуре справа налево
+
+                            Entry new_entry;
+                            new_entry.path = "";
+
+                            for (int j = 0; j < len_name; j++)
+                            {
+                                new_entry.path = new_entry.path + (char)Zip_data[(i + 46) + j];
+                            }
+
+
+                            if (new_entry.path.back() != '/')
+                            {
+                                new_entry.is_folder = 0;
+                            }
+                            else
+                            {
+                                new_entry.path = new_entry.path.substr(0, new_entry.path.length() - 1);
+                            }
+
+                            new_entry.Rename_entry(Zip_entries, 0);
+                        }
+                        i++;
+                    }
+
+                    cout << "VFS:" << endl;
+                    for (int i = 0; i < Zip_entries.size(); i++)
+                    {
+                        if (Zip_entries[i].is_folder == 1)
+                        {
+                            cout << "Folder: " << Zip_entries[i].name << endl;
+                            cout << "Folder: " << Zip_entries[i].path << endl;
+                        }
+                        else
+                        {
+                            cout << "Folder: " << Zip_entries[i].name << endl;
+                            cout << "File: " << Zip_entries[i].path << endl;
+                        }
+                    }
+                }
+                else if (f_size == -1)
+                {
+                    return;
+                }
+                else
+                {
+                    Error_message(5, f_path);
+                }
+            }
+            else
+            {
+                Error_message(5, f_path);
+            }
+
+        }
+        else
+        {
+            Error_message(3, f_path);
+        }
+    }
+    else
+    {
+        Error_message(4, f_path);
     }
 }
 
@@ -297,14 +482,12 @@ void Configuration_file(string f_path, char func, char* user_name, char* host_na
             if ((func == 'a' or func == 'v') and command.find("<VFS>") == 0)
             {
                 command = command.substr(5, command.length() - 5 - 6);
-                cout << "--vfs" << " " << command << endl;
                 VFS(command);
                 continue;
             }
             else if ((func == 'a' or func == 's') and command.find("<Script>") == 0)
             {
                 command = command.substr(8, command.length() - 8 - 9);
-                cout << "--script" << " " << command << endl;
                 Script(command, user_name, host_name);
                 continue;
             }
@@ -331,26 +514,17 @@ void Launched_with_command(int q_commands, char* with_command[], char* user_name
 
     if (func_arguments[0] == "--vfs" and func_arguments.size() == 2)
     {
-        cout << func_arguments[0] << " " << func_arguments[1] << endl;
         VFS(func_arguments[1]);
     }
     else if (func_arguments[0] == "--script" and func_arguments.size() == 2)
     {
-        cout << func_arguments[0] << " " << func_arguments[1] << endl;
         Script(func_arguments[1], user_name, host_name);
     }
     else if (func_arguments[0] == "--config")
     {
-        cout << func_arguments[0];
-
         if (func_arguments.size() == 1)
         {
-            cout << endl;
             func_arguments.push_back("C:\\Users\\Света\\Desktop\\Configuration_management\\Practical_work_1\\Scripts and files\\Configuration.xml");
-        }
-        else
-        {
-            cout << " " << func_arguments[1] << endl;
         }
         char func = 'a';
 
@@ -358,8 +532,6 @@ void Launched_with_command(int q_commands, char* with_command[], char* user_name
     }
     else if ((func_arguments[0] == "--vfs" or func_arguments[0] == "--script") and func_arguments.size() == 1)
     {
-        cout << func_arguments[0] << endl;
-
         func_arguments.push_back("C:\\Users\\Света\\Desktop\\Configuration_management\\Practical_work_1\\Scripts and files\\Configuration.xml");
         char func;
 
@@ -372,7 +544,6 @@ void Launched_with_command(int q_commands, char* with_command[], char* user_name
             func = 's';
         }
 
-        cout << "--conf" << " " << func_arguments[1] << endl;
         Configuration_file(func_arguments[1], func, user_name, host_name);
     }
     else if (func_arguments[0] == "ls")
