@@ -39,5 +39,5 @@
   <img width="2336" height="1209" alt="Снимок экрана 2025-10-06 001406" src="https://github.com/user-attachments/assets/624f1f5c-2f98-49a2-bcdd-69d26e8b9cc3" />
   <img width="2333" height="1210" alt="Снимок экрана 2025-10-06 001429" src="https://github.com/user-attachments/assets/a5193008-c2bb-4f40-b3a8-f8f5c6301d01" />
   <img width="2333" height="1208" alt="Снимок экрана 2025-10-06 001501" src="https://github.com/user-attachments/assets/76830bdc-3b8d-4da9-ac49-98fc0e8b0f3f" />
-
+  (Последний скрин результат активации изменённого скрипта script_config.cmd)
 
