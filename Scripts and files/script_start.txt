@@ -1,7 +1,7 @@
-ls "abc" de
-cd abc "de"
-lsabc
-cd
-l abc
-cd                             adv
+ls /
+cd ./Main_folder/Folder
+ls
+clear 345
+uptime
+clear
 exit
