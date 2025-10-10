@@ -28,6 +28,7 @@ public:
     string name;
     string path;
     bool is_folder = 1;
+    string owner = "user";
     Entry* Up_folder;
     vector<Entry*> Down_entries;
 
@@ -216,6 +217,39 @@ public:
         }
 
     }
+
+    void Has_original_name(Entry* new_copy_entry, Entry* copy_entry, Entry* up_folder_entry)
+    {
+        bool is_found = 0;
+        for (int i = 0; i < up_folder_entry->Down_entries.size(); i++)
+        {
+            if (up_folder_entry->Down_entries[i]->name == copy_entry->name)
+            {
+                is_found = 1;
+            }
+        }
+
+        if (is_found == 1)
+        {
+            string copy_name;
+            if (copy_entry->is_folder == 0)
+            {
+                int i_dot = copy_entry->name.rfind('.');
+                string f_extension = copy_entry->name.substr(i_dot);
+                copy_name = copy_entry->name.substr(0, i_dot) + " - copy" + f_extension;
+            }
+            else
+            {
+                copy_name = copy_entry->name + " - copy";
+            }
+
+            new_copy_entry->name = copy_name;
+        }
+        else
+        {
+            new_copy_entry->name = copy_entry->name;
+        }
+    }
 };
 
 void Get_name(char* user_name, char* host_name)  //получение реальных данных, используемых для формирования приглашения к вводу
@@ -285,6 +319,25 @@ double CPU_load() //эмуляция получения данных о нагр
         double part_of_idle_time_to_total_time = (double)idle_difference / total_difference; //доля времени отсутствия нагрузки (это время является частью времени нагрузки в режиме ядра)
         double cpu_load_per_5_sec = 1.0 - part_of_idle_time_to_total_time; //доля времени нагрузки процессора
         return cpu_load_per_5_sec;
+    }
+}
+
+void Copy_all_entries(Entry* copy_entry, Entry* up_folder_entry)
+{
+    Entry* new_copy_entry = new Entry;
+    new_copy_entry->Has_original_name(new_copy_entry, copy_entry, up_folder_entry);
+    new_copy_entry->path = up_folder_entry->path + "/" + new_copy_entry->name;
+    new_copy_entry->is_folder = copy_entry->is_folder;
+    new_copy_entry->owner = copy_entry->owner;
+    new_copy_entry->Up_folder = up_folder_entry;
+    up_folder_entry->Down_entries.push_back(new_copy_entry);
+
+    if (new_copy_entry->is_folder != 0)
+    {
+        for (int i = 0; i < copy_entry->Down_entries.size(); i++)
+        {
+            Copy_all_entries(copy_entry->Down_entries[i], new_copy_entry);
+        }
     }
 }
 
@@ -490,6 +543,9 @@ void Error_message(int error_code, string command) //вывод сообщени
         break;
     case 8:
         cout << "File system not available" << endl;
+        break;
+    case 9:
+        cout << command << ": missing operand(s)" << endl;
         break;
     }
 }
@@ -747,6 +803,84 @@ void uptime(string command) //команда uptime
     }
 }
 
+void cp(string path_to_entry_to_copy, string path_to_new_up_folder)
+{
+    if (current_entry != nullptr)
+    {
+        temp = current_entry;
+        last_entry = current_entry;
+        current_entry = nullptr;
+
+        if (path_to_entry_to_copy[0] == '/')
+        {
+            temp->Current_entry_by_relative_path(path_to_entry_to_copy.substr(1), path_to_entry_to_copy);
+        }
+        else
+        {
+            temp->Current_entry_by_relative_path(path_to_entry_to_copy, path_to_entry_to_copy);
+        }
+
+        Entry* copy_entry = current_entry;
+        current_entry = last_entry;
+
+        temp = current_entry;
+        last_entry = current_entry;
+        current_entry = nullptr;
+
+        if (path_to_new_up_folder[0] == '/')
+        {
+            temp->Current_entry_by_relative_path(path_to_new_up_folder.substr(1), path_to_new_up_folder);
+        }
+        else
+        {
+            temp->Current_entry_by_relative_path(path_to_new_up_folder, path_to_new_up_folder);
+        }
+
+        Entry* up_folder_entry = current_entry;
+        current_entry = last_entry;
+
+        if (copy_entry != nullptr && up_folder_entry != nullptr && up_folder_entry->is_folder == 1)
+        {
+            if (up_folder_entry->is_folder == 1)
+            {
+                Copy_all_entries(copy_entry, up_folder_entry);
+            }
+            else
+            {
+                Error_message(6, path_to_new_up_folder);
+            }
+        }
+    }
+
+}
+
+void chown(string new_owner, string path)
+{
+    if (current_entry != nullptr)
+    {
+        temp = current_entry;
+        last_entry = current_entry;
+        current_entry = nullptr;
+
+        if (path[0] == '/')
+        {
+            temp->Current_entry_by_relative_path(path.substr(1), path);
+        }
+        else
+        {
+            temp->Current_entry_by_relative_path(path, path);
+        }
+
+        if (current_entry != nullptr)
+        {
+            current_entry->owner = new_owner;
+            cout << "Owner of " << current_entry->name << " changed to " << current_entry->owner << endl;
+        }
+
+        current_entry = last_entry;
+    }
+}
+
 size_t Read_zip(string f_path, vector<unsigned char>& Zip_data) //чтение zip-файла
 {
     ifstream in(f_path, ios::binary);
@@ -914,6 +1048,50 @@ void Script(string f_path, char* user_name, char* host_name) //команда --
             else if (command.substr(0, 6) == "uptime")
             {
                 uptime(command);
+                continue;
+            }
+            else if (command.substr(0, 2) == "cp")
+            {
+                if (VFS_loaded == 1)
+                {
+                    vector<string> func_arguments;
+                    Parser(command.substr(3), func_arguments);
+
+                    if (func_arguments.size() != 2)
+                    {
+                        Error_message(9, "cp");
+                    }
+                    else
+                    {
+                        cp(func_arguments[0], func_arguments[1]);
+                    }
+                }
+                else
+                {
+                    Error_message(8, "");
+                }
+                continue;
+            }
+            else if (command.substr(0, 5) == "chown")
+            {
+                if (VFS_loaded == 1)
+                {
+                    vector<string> func_arguments;
+                    Parser(command.substr(6), func_arguments);
+
+                    if (func_arguments.size() != 2)
+                    {
+                        Error_message(9, "chown");
+                    }
+                    else
+                    {
+                        chown(func_arguments[0], func_arguments[1]);
+                    }
+                }
+                else
+                {
+                    Error_message(8, "");
+                }
                 continue;
             }
             else if (command.size() > 0)
@@ -1089,6 +1267,42 @@ void Launched_with_command(int q_commands, char* with_command[], char* user_name
                 uptime(func_arguments[i]);
             }
         }
+        else if (func_arguments[i] == "cp")
+        {
+            if (VFS_loaded == 0)
+            {
+                Error_message(8, "");
+                continue;
+            }
+
+            if (func_arguments.size() > i + 2 && Is_command(func_arguments[i + 1]) != true && Is_command(func_arguments[i + 1]) != true)
+            {
+                cp(func_arguments[i + 1], func_arguments[i + 2]);
+                i = i + 2;
+            }
+            else
+            {
+                Error_message(9, func_arguments[i]);
+            }
+            }
+        else if (func_arguments[i] == "chown")
+        {
+            if (VFS_loaded == 0)
+            {
+                Error_message(8, "");
+                continue;
+            }
+
+            if (func_arguments.size() > i + 2 && Is_command(func_arguments[i + 1]) != true && Is_command(func_arguments[i + 1]) != true)
+            {
+                chown(func_arguments[i + 1], func_arguments[i + 2]);
+                i = i + 2;
+            }
+            else
+            {
+                Error_message(9, func_arguments[i]);
+            }
+        }
         else
         {
             Error_message(1, func_arguments[i]);
@@ -1146,6 +1360,50 @@ void Launched_without_command(char* user_name, char* host_name) //запуск �
         else if (command.substr(0, 6) == "uptime")
         {
             uptime(command);
+            continue;
+        }
+        else if (command.substr(0, 2) == "cp")
+        {
+            if (VFS_loaded == 1)
+            {
+                vector<string> func_arguments;
+                Parser(command.substr(3), func_arguments);
+
+                if (func_arguments.size() != 2)
+                {
+                    Error_message(9, "cp");
+                }
+                else
+                {
+                    cp(func_arguments[0], func_arguments[1]);
+                }
+            }
+            else
+            {
+                Error_message(8, "");
+            }
+            continue;
+        }
+        else if (command.substr(0, 5) == "chown")
+        {
+            if (VFS_loaded == 1)
+            {
+                vector<string> func_arguments;
+                Parser(command.substr(6), func_arguments);
+
+                if (func_arguments.size() != 2)
+                {
+                    Error_message(9, "chown");
+                }
+                else
+                {
+                    chown(func_arguments[0], func_arguments[1]);
+                }
+            }
+            else
+            {
+                Error_message(8, "");
+            }
             continue;
         }
         else if (command.size() > 0)

@@ -1,7 +1,11 @@
 ls /
 cd ./Main_folder/Folder
+chown Io
 ls
 clear 345
 uptime
-clear
+chown Clem Text_files/data.txt
+cp Text_files/data.txt Picture_files
+cd ./Picture_files
+ls
 exit
