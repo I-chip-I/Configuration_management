@@ -56,9 +56,12 @@
 ## О проекте:
 - Реализованы комнды: cp, chown.
 - Изменён стартовый скрипт для тестирования всех реализованных на этом этапе команд. Остались прошлые скрипты, модифицированные для демонстрации работы VFS и обработки ошибок.
-<img width="2331" height="1214" alt="Снимок экрана 2025-10-10 104711" src="https://github.com/user-attachments/assets/6c53d4c4-654a-44f7-ae83-9c73a4c8eee9" />
-<img width="2331" height="1205" alt="Снимок экрана 2025-10-10 104801" src="https://github.com/user-attachments/assets/2f3c6bce-531e-4c39-9643-f4b803c7d819" />
-<img width="2336" height="1201" alt="Снимок экрана 2025-10-10 104830" src="https://github.com/user-attachments/assets/542a6e8e-01f0-4328-8f36-7a57e678b228" />
+<img width="2339" height="1210" alt="Снимок экрана 2025-10-10 134645" src="https://github.com/user-attachments/assets/33dc5061-f00d-46f1-9b1f-397850151f98" />
+<img width="2335" height="1199" alt="Снимок экрана 2025-10-10 134746" src="https://github.com/user-attachments/assets/7cbd4400-8683-4cb1-a744-835864e0d6fd" />
+<img width="2336" height="1204" alt="Снимок экрана 2025-10-10 134829" src="https://github.com/user-attachments/assets/02d25021-d197-4011-9dbe-de41d9f57668" />
+
+
+
 
 
 
