@@ -7,5 +7,5 @@ uptime
 chown Clem Text_files/data.txt
 cp Text_files/data.txt Picture_files
 cd ./Picture_files
-ls
+ls -l
 exit

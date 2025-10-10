@@ -22,13 +22,13 @@ vector<Entry*> Zip_entries;
 
 void Error_message(int error_code, string command);
 
-struct Entry //структура папок/файлов VFS
+struct Entry //структура папок или файлов VFS, а также методы для работы с ней
 {
 public:
     string name;
     string path;
     bool is_folder = 1;
-    string owner = "user";
+    string owner = "Miron";
     Entry* Up_folder;
     vector<Entry*> Down_entries;
 
@@ -322,7 +322,7 @@ double CPU_load() //эмуляция получения данных о нагр
     }
 }
 
-void Copy_all_entries(Entry* copy_entry, Entry* up_folder_entry)
+void Copy_all_entries(Entry* copy_entry, Entry* up_folder_entry) //копирование файлов скопированной папки
 {
     Entry* new_copy_entry = new Entry;
     new_copy_entry->Has_original_name(new_copy_entry, copy_entry, up_folder_entry);
@@ -386,7 +386,7 @@ string Command_to_string(int q_commands, char* command[]) //перевод фо�
 
 bool Is_command(string command) //проверка на то, является ли переданный параметр командой
 {
-    vector<string> commands = { "--vfs", "--script", "--config", "ls", "cd", "clear", "uptime" };
+    vector<string> commands = { "--vfs", "--script", "--config", "ls", "cd", "clear", "uptime", "cp", "chown"};
 
     for (int i = 0; i < commands.size(); i++)
     {
@@ -569,6 +569,22 @@ void ls(string command) //команда ls
                     }
 
                     cout << endl;
+                    return;
+                }
+                else
+                {
+                    Error_message(5, func_arguments[0]);
+                }
+            }
+            else if (func_arguments[0] == "-l" && func_arguments.size() == 1)
+            {
+                if (Zip_entries[0]->Down_entries.size() != 0)
+                {
+                    for (int i = 0; i < current_entry->Down_entries.size(); i++)
+                    {
+                        cout << setw(10) << left << current_entry->Down_entries[i]->owner << setw(10) << current_entry->Down_entries[i]->name << endl;
+                    }
+
                     return;
                 }
                 else
@@ -803,7 +819,7 @@ void uptime(string command) //команда uptime
     }
 }
 
-void cp(string path_to_entry_to_copy, string path_to_new_up_folder)
+void cp(string path_to_entry_to_copy, string path_to_new_up_folder) //команда cp
 {
     if (current_entry != nullptr)
     {
@@ -854,7 +870,7 @@ void cp(string path_to_entry_to_copy, string path_to_new_up_folder)
 
 }
 
-void chown(string new_owner, string path)
+void chown(string new_owner, string path) //команда chown
 {
     if (current_entry != nullptr)
     {
@@ -874,7 +890,6 @@ void chown(string new_owner, string path)
         if (current_entry != nullptr)
         {
             current_entry->owner = new_owner;
-            cout << "Owner of " << current_entry->name << " changed to " << current_entry->owner << endl;
         }
 
         current_entry = last_entry;
@@ -1414,7 +1429,7 @@ void Launched_without_command(char* user_name, char* host_name) //запуск �
     }
 }
 
-int main(int q_commands, char* with_command[])
+int main(int q_commands, char* with_command[])  //основная программа
 {
     setlocale(LC_ALL, "rus");
 
